@@ -465,6 +465,83 @@ class Mage_Core_Model_App
     }
 
     /**
+     * Validate that a website exists.
+     *
+     * @param $website string Website code
+     * @throws Exception
+     */
+    public function validateWebsite($website)
+    {
+        if (!array_key_exists($website, $this->_websites)) {
+            throw new Exception('Invalid Website: ' . $website);
+        }
+    }
+
+    /**
+     * Save store cookie
+     *
+     * @param $website string Website code
+     */
+    public function saveStoreCookie($website)
+    {
+        $company_domain = Mage::getConfig()->getCompanyDomain();
+        $cookie = Mage::getSingleton('core/cookie');
+        $cookie->set('current_website', $website, time() + 86400, '/', $company_domain, false, true);
+        Mage::dispatchEvent('set_store_cookie', array('store_cookie' => $website));
+    }
+
+    /**
+     * Get the store cookie
+     *
+     * @return mixed
+     */
+    public function getStoreCookie()
+    {
+        $cookie = Mage::getSingleton('core/cookie');
+        return $cookie->get('current_website');
+    }
+
+    /**
+     * Delete store cookie
+     */
+    public function deleteStoreCookie()
+    {
+        $cookie = Mage::getSingleton('core/cookie');
+        $cookie->delete('current_website');
+    }
+
+    /**
+     * Get/Set store cookie for company domain
+     *
+     * @param $scopeCode
+     * @param $scopeType
+     * @return array
+     */
+    protected function updateStoreCookie($scopeCode, $scopeType)
+    {
+        $website_select = $this->getRequest()->getParam('_w');
+        $default = array($scopeCode, $scopeType);
+        try {
+            if ($website_select) {
+                $this->validateWebsite($website_select);
+                $this->saveStoreCookie($website_select);
+                return array($website_select, 'website');
+            } else {
+                $stored_website = $this->getStoreCookie();
+                if ($stored_website) {
+                    $this->validateWebsite($stored_website);
+                    return array($stored_website, 'website');
+                } else {
+                    return $default;
+                }
+            }
+        } catch (Exception $e) {
+            Mage::log('Failed to get/set website cookie: ' . $e->getMessage(), Zend_Log::ERR);
+            return $default;
+        }
+    }
+
+    /**
      * Initialize currently ran store
      *
      * @param string $scopeCode code of default scope (website/store_group/store code)
@@ -476,6 +553,10 @@ class Mage_Core_Model_App
         Varien_Profiler::start('mage::app::init::stores');
         $this->_initStores();
         Varien_Profiler::stop('mage::app::init::stores');
+
+        $custom_scope = $this->updateStoreCookie($scopeCode, $scopeType);
+        $scopeCode = $custom_scope[0];
+        $scopeType = $custom_scope[1];
 
         if (empty($scopeCode) && !is_null($this->_website)) {
             $scopeCode = $this->_website->getCode();

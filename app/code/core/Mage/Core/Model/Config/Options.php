@@ -51,8 +51,22 @@ class Mage_Core_Model_Config_Options extends Varien_Object
      */
     protected function _construct()
     {
+    }
+
+    public function setupPaths($company_domain)
+    {
         $appRoot= Mage::getRoot();
         $root   = dirname($appRoot);
+
+        $localXml = $root.'etc'.DS.'local.xml';
+        $companyVar = $root.DS.'company_var';
+        $companyMedia = $root.DS.'company_media';
+        if (!file_exists($localXml) && file_exists($companyVar)  && file_exists($companyMedia)) {
+            $this->_data['var_dir'] = $companyVar.DS.$company_domain;
+            $media_dir = $companyMedia.DS.$company_domain;
+        } else {
+            $media_dir = $root.DS.'media';
+        }
 
         $this->_data['app_dir']     = $appRoot;
         $this->_data['base_dir']    = $root;
@@ -61,7 +75,7 @@ class Mage_Core_Model_Config_Options extends Varien_Object
         $this->_data['etc_dir']     = $appRoot.DS.'etc';
         $this->_data['lib_dir']     = $root.DS.'lib';
         $this->_data['locale_dir']  = $appRoot.DS.'locale';
-        $this->_data['media_dir']   = $root.DS.'media';
+        $this->_data['media_dir']   = $media_dir;
         $this->_data['skin_dir']    = $root.DS.'skin';
         $this->_data['var_dir']     = $this->getVarDir();
         $this->_data['tmp_dir']     = $this->_data['var_dir'].DS.'tmp';

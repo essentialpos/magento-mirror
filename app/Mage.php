@@ -760,6 +760,9 @@ final class Mage
                 $etcDir = $options['etc_dir'];
             }
             $localConfigFile = $etcDir . DS . 'local.xml';
+            if (!file_exists($localConfigFile)) {
+                $localConfigFile = self::getConfig()->getFullPathToCompanyXml();
+            }
 
             self::$_isInstalled = false;
 

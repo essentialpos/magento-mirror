@@ -875,7 +875,8 @@ final class Maged_Controller
             include_once $this->getMageFilename();
             Mage::setIsDownloader();
         }
-        return Mage::isInstalled();
+        // Disable is installed check.
+        return true;
     }
 
     /**

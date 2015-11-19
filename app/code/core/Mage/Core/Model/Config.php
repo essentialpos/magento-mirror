@@ -198,9 +198,49 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
     {
         $this->setCacheId('config_global');
         $this->_options         = new Mage_Core_Model_Config_Options($sourceData);
+        $this->_options->setupPaths($this->getCompanyDomain());
         $this->_prototype       = new Mage_Core_Model_Config_Base();
         $this->_cacheChecksum   = null;
         parent::__construct($sourceData);
+    }
+
+    const ICONV_CHARSET = 'UTF-8';
+
+    /**
+     * Copied from Mage_Core_Helper_String. Cannot call helper before app init.
+     *
+     * @param $string
+     * @return string
+     */
+    public function cleanStringCopy($string)
+    {
+        return '"libiconv"' == ICONV_IMPL ?
+            iconv(self::ICONV_CHARSET, self::ICONV_CHARSET . '//IGNORE', $string) : $string;
+    }
+
+    public function getCompanyDomain($host=null)
+    {
+        if (!$host) {
+            $host = $this->cleanStringCopy($_SERVER['HTTP_HOST']);
+        }
+        return $host;
+    }
+
+    public function getPathToCompany()
+    {
+        $etcDir = $this->getOptions()->getEtcDir();
+        return $etcDir . DS . 'company';
+    }
+
+    public function getCompanyXmlName($host=null)
+    {
+        $host = $this->getCompanyDomain($host);
+        return sprintf('local-%s.xml', $host);
+    }
+
+    public function getFullPathToCompanyXml()
+    {
+        return $this->getPathToCompany() . DS . $this->getCompanyXmlName();
     }
 
     /**
@@ -271,13 +311,18 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
     {
         $etcDir = $this->getOptions()->getEtcDir();
         $files = glob($etcDir.DS.'*.xml');
+        $localXml = $etcDir.DS.'local.xml';
+        $companyXml = $this->getFullPathToCompanyXml();
+        if (!file_exists($localXml) && file_exists($companyXml)) {
+            $files[] = $companyXml;
+        }
         $this->loadFile(current($files));
         while ($file = next($files)) {
             $merge = clone $this->_prototype;
             $merge->loadFile($file);
             $this->extend($merge);
         }
-        if (in_array($etcDir.DS.'local.xml', $files)) {
+        if (in_array($localXml, $files) || in_array($companyXml, $files)) {
             $this->_isLocalConfigLoaded = true;
         }
         return $this;
@@ -322,6 +367,9 @@ class Mage_Core_Model_Config extends Mage_Core_Model_Config_Base
          */
         $mergeConfig = clone $this->_prototype;
         $this->_isLocalConfigLoaded = $mergeConfig->loadFile($this->getOptions()->getEtcDir().DS.'local.xml');
+        if (!$this->_isLocalConfigLoaded) {
+            $this->_isLocalConfigLoaded = $mergeConfig->loadFile($this->getFullPathToCompanyXml());
+        }
         if ($this->_isLocalConfigLoaded) {
             $this->extend($mergeConfig);
         }

@@ -41,13 +41,36 @@ PHP_BIN=`which php`
 # absolute path to magento installation
 INSTALLDIR=`echo $0 | sed 's/cron\.sh//g'`
 
-#	prepend the intallation path if not given an absolute path
-if [ "$INSTALLDIR" != "" -a "`expr index $CRONSCRIPT /`" != "1" ];then
-    if ! ps auxwww | grep "$INSTALLDIR$CRONSCRIPT$MODE" | grep -v grep 1>/dev/null 2>/dev/null ; then
-    	$PHP_BIN $INSTALLDIR$CRONSCRIPT$MODE &
+run() {
+
+    if [ "$1" != "" ]; then
+        export HTTP_HOST=$1
+        HOST_PARAM=" ${HTTP_HOST}"
+    else
+        HOST_PARAM=""
     fi
+
+    #	prepend the intallation path if not given an absolute path
+    if [ "$INSTALLDIR" != "" -a "`expr index $CRONSCRIPT /`" != "1" ];then
+        if ! ps auxwww | grep "$INSTALLDIR$CRONSCRIPT$MODE$HOST_PARAM" | grep -v grep 1>/dev/null 2>/dev/null ; then
+            $PHP_BIN $INSTALLDIR$CRONSCRIPT$MODE$HOST_PARAM &
+        fi
+    else
+        if  ! ps auxwww | grep "$CRONSCRIPT$MODE$HOST_PARAM" | grep -v grep | grep -v cron.sh 1>/dev/null 2>/dev/null ; then
+            $PHP_BIN $CRONSCRIPT$MODE$HOST_PARAM &
+        fi
+    fi
+
+}
+
+if [ -d "${INSTALLDIR}company_var" ]; then
+    # Find the domains that are installed in the company_var directory.
+    for i in ${INSTALLDIR}company_var/* ; do
+      if [ -d "$i" ]; then
+        MAG_HOSTNAME=$(basename "$i")
+        run ${MAG_HOSTNAME}
+      fi
+    done
 else
-    if  ! ps auxwww | grep "$CRONSCRIPT$MODE" | grep -v grep | grep -v cron.sh 1>/dev/null 2>/dev/null ; then
-        $PHP_BIN $CRONSCRIPT$MODE &
-    fi
+    run ""
 fi
